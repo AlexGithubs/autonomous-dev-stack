@@ -1,0 +1,44 @@
+version: 2
+snapshot:
+  widths:
+    - 375    # Mobile
+    - 768    # Tablet
+    - 1280   # Desktop
+    - 1920   # Wide desktop
+  minHeight: 1024
+  percyCSS: |
+    /* Hide dynamic content */
+    [data-percy-hide] { visibility: hidden; }
+    /* Redact sensitive data */
+    input[type="password"] { color: transparent !important; }
+    .api-key, .credit-card { filter: blur(5px); }
+  enableJavaScript: true
+  cliEnableJavaScript: true
+  disableShadowDOM: false
+
+discovery:
+  allowedHostnames:
+    - localhost
+    - '*.vercel.app'
+  networkIdleTimeout: 500
+  concurrency: 5
+
+upload:
+  files: "**/*.{png,jpg,jpeg}"
+  ignore: 
+    - "node_modules/**"
+    - ".git/**"
+    - "test-results/**"
+
+agent:
+  assetDiscovery:
+    requestHeaders:
+      Authorization: "Bearer ${PERCY_AUTH_HEADER}"
+    allowedHostnames:
+      - localhost:3000
+      - "*.vercel.app"
+  
+# Diff threshold
+diff:
+  threshold: 2  # 2% pixel difference allowed
+  antiAliasing: true

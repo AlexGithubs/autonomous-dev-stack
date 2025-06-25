@@ -1,0 +1,42 @@
+# Dependencies
+node_modules
+
+# Production
+.next
+out
+build
+dist
+
+# Testing
+coverage
+test-results
+playwright-report
+
+# Logs
+logs
+*.log
+
+# Environment
+.env
+.env.*
+
+# Generated files
+*.min.js
+*.min.css
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# VRT
+vrt/screenshots
+vrt/baselines
+vrt/diffs
+
+# Reports
+reports/
+
+# Temporary
+.tmp*
+*.tmp

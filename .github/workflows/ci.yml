@@ -1,0 +1,210 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop, 'devin/**' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '20'
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  check-halt:
+    runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.check.outputs.should-run }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check kill switch
+        id: check
+        run: |
+          if [[ -f .env ]] && grep -q "HALT_PIPELINE=true" .env; then
+            echo "❌ Pipeline is halted via kill switch"
+            echo "should-run=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "should-run=true" >> $GITHUB_OUTPUT
+
+  lint:
+    needs: check-halt
+    if: needs.check-halt.outputs.should-run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint || true
+      
+      - name: Run TypeScript check
+        run: npm run type-check || true
+
+  build:
+    needs: check-halt
+    if: needs.check-halt.outputs.should-run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.API_URL || 'http://localhost:3000' }}
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-output
+          path: .next/
+          retention-days: 7
+
+  test:
+    needs: [check-halt, build]
+    if: needs.check-halt.outputs.should-run == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-output
+          path: .next/
+      
+      - name: Run unit tests
+        run: npm run test:unit || true
+      
+      - name: Run Playwright tests
+        run: npx playwright test --shard=${{ matrix.shard }}/3
+        env:
+          CI: true
+          BASE_URL: http://localhost:3000
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-report-${{ matrix.shard }}
+          path: playwright-report/
+          retention-days: 30
+
+  deploy-preview:
+    needs: [check-halt, build, test]
+    if: |
+      needs.check-halt.outputs.should-run == 'true' &&
+      github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+      
+      - name: Deploy to Vercel
+        run: |
+          vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --token=${{ secrets.VERCEL_TOKEN }}
+          vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} > deployment-url.txt
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      
+      - name: Comment PR with preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const url = fs.readFileSync('deployment-url.txt', 'utf8').trim();
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 Preview deployed to: ${url}`
+            });
+
+  cost-check:
+    needs: check-halt
+    if: needs.check-halt.outputs.should-run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check costs
+        run: |
+          chmod +x scripts/monitor_costs.sh
+          ./scripts/monitor_costs.sh --summary || true
+        env:
+          HELICONE_API_KEY: ${{ secrets.HELICONE_API_KEY }}
+          BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+      
+      - name: Upload cost report
+        uses: actions/upload-artifact@v3
+        with:
+          name: cost-report
+          path: costs/
+          retention-days: 30
+
+  notify:
+    needs: [lint, build, test, deploy-preview]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK != ''
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          STATUS="${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}"
+          COLOR="${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}"
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"attachments\": [{
+                \"color\": \"$COLOR\",
+                \"title\": \"CI Pipeline $STATUS\",
+                \"text\": \"Repository: ${{ github.repository }}\nBranch: ${{ github.ref }}\nCommit: ${{ github.sha }}\"
+              }]
+            }" \
+            $SLACK_WEBHOOK

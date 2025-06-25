@@ -1,0 +1,100 @@
+version: 1.0
+name: "Happy Path Smoke Test"
+timeout: 720 # 12 minutes in seconds
+
+redactions:
+  - selector: "input[type='password']"
+  - selector: "[data-testid='sensitive']"
+  - selector: ".api-key"
+  - selector: ".credit-card"
+  - pattern: "/[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{4}/" # Credit cards
+  - pattern: "/[A-Za-z0-9+/]{40,}/" # API keys
+
+flow:
+  - name: "Load homepage"
+    action: navigate
+    url: "${BASE_URL}/"
+    wait_for: "networkidle"
+    
+  - name: "Check main content"
+    action: assert
+    selector: "h1"
+    exists: true
+    
+  - name: "Screenshot homepage"
+    action: screenshot
+    filename: "homepage.png"
+    full_page: true
+    
+  - name: "Test navigation"
+    action: click
+    selector: "nav a:first-child, header a:first-child"
+    optional: true
+    
+  - name: "Wait for navigation"
+    action: wait
+    duration: 2000
+    
+  - name: "Fill form if exists"
+    action: conditional
+    condition:
+      selector: "form"
+      exists: true
+    then:
+      - action: fill
+        selector: "input[type='text']:first-of-type, input[type='email']:first-of-type"
+        value: "test@example.com"
+        
+      - action: fill
+        selector: "input[type='password']:first-of-type"
+        value: "TestPass123!"
+        redact: true
+        
+      - action: click
+        selector: "button[type='submit'], input[type='submit']"
+        
+      - action: wait
+        for: "networkidle"
+        timeout: 5000
+        
+  - name: "Test responsive design"
+    action: viewport
+    width: 375
+    height: 667
+    
+  - name: "Check mobile layout"
+    action: assert
+    selector: "h1"
+    visible: true
+    
+  - name: "Screenshot mobile"
+    action: screenshot
+    filename: "mobile.png"
+    
+  - name: "Test API endpoint"
+    action: api_call
+    method: GET
+    url: "${BASE_URL}/api/hello"
+    expect_status: 200
+    
+  - name: "Performance check"
+    action: measure
+    metrics:
+      - first_contentful_paint
+      - largest_contentful_paint
+      - cumulative_layout_shift
+    thresholds:
+      first_contentful_paint: 3000
+      largest_contentful_paint: 4000
+      cumulative_layout_shift: 0.1
+
+reporting:
+  format: json
+  output: "./reports/stagehand-report.json"
+  include_screenshots: true
+  include_performance: true
+  
+error_handling:
+  on_failure: continue
+  max_retries: 1
+  screenshot_on_error: true

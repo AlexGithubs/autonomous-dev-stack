@@ -1,0 +1,68 @@
+{
+    "name": "autonomous-dev-stack",
+    "version": "1.0.0",
+    "description": "Multi-agent auto-dev pipeline for freelancers",
+    "main": "index.js",
+    "scripts": {
+      "dev": "next dev",
+      "build": "next build",
+      "start": "next start",
+      "lint": "next lint",
+      "type-check": "tsc --noEmit",
+      "test": "npm run test:unit && npm run test:e2e",
+      "test:unit": "jest",
+      "test:e2e": "playwright test",
+      "test:visual": "percy snapshot ./pages",
+      "test:vrt": "node scripts/run-vrt.js",
+      "test:a11y": "node scripts/run-a11y.js",
+      "spec:generate": "node scripts/generate-spec.js",
+      "scaffold": "./devin/devin_run.sh",
+      "monitor": "./scripts/monitor_costs.sh",
+      "kill": "./scripts/kill_pipeline.sh",
+      "bootstrap": "./scripts/bootstrap.sh"
+    },
+    "dependencies": {
+      "next": "^14.0.0",
+      "react": "^18.2.0",
+      "react-dom": "^18.2.0",
+      "axios": "^1.6.0",
+      "tailwindcss": "^3.4.0"
+    },
+    "devDependencies": {
+      "@playwright/test": "^1.40.0",
+      "@percy/cli": "^1.27.0",
+      "@percy/playwright": "^1.0.4",
+      "@types/node": "^20.0.0",
+      "@types/react": "^18.2.0",
+      "@types/react-dom": "^18.2.0",
+      "@typescript-eslint/eslint-plugin": "^6.0.0",
+      "@typescript-eslint/parser": "^6.0.0",
+      "autoprefixer": "^10.4.0",
+      "eslint": "^8.50.0",
+      "eslint-config-next": "^14.0.0",
+      "jest": "^29.7.0",
+      "postcss": "^8.4.0",
+      "typescript": "^5.3.0",
+      "wait-on": "^7.2.0",
+      "@lhci/cli": "^0.13.0",
+      "axe-playwright": "^1.2.3",
+      "@browserbasehq/stagehand": "^1.0.0"
+    },
+    "engines": {
+      "node": ">=20.0.0",
+      "npm": ">=10.0.0"
+    },
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/AlexGithubs/autonomous-dev-stack.git"
+    },
+    "keywords": [
+      "automation",
+      "ai",
+      "development",
+      "testing",
+      "multi-agent"
+    ],
+    "author": "Your Team",
+    "license": "MIT"
+  }

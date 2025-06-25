@@ -1,0 +1,294 @@
+name: Nightly QA Suite
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Run at 2 AM UTC daily
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '20'
+  PERCY_PARALLEL_TOTAL: 3
+  BROWSERBASE_TIMEOUT: 720
+
+jobs:
+  check-halt:
+    runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.check.outputs.should-run }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check kill switch and costs
+        id: check
+        run: |
+          # Check kill switch
+          if [[ -f .env ]] && grep -q "HALT_PIPELINE=true" .env; then
+            echo "❌ Pipeline is halted via kill switch"
+            echo "should-run=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Check budget
+          if [[ -f costs/daily_report_$(date +%Y%m%d).json ]]; then
+            REMAINING=$(jq -r '.totals.remaining' costs/daily_report_$(date +%Y%m%d).json)
+            if (( $(echo "$REMAINING < 1" | bc -l) )); then
+              echo "❌ Daily budget exhausted"
+              echo "should-run=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+          
+          echo "should-run=true" >> $GITHUB_OUTPUT
+
+  visual-regression:
+    needs: check-halt
+    if: needs.check-halt.outputs.should-run == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Start application
+        run: |
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout=60000
+      
+      - name: Run Percy visual tests
+        run: npx percy exec -- npm run test:visual -- --shard=${{ matrix.shard }}/3
+        env:
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+          PERCY_PARALLEL_NONCE: ${{ github.run_id }}-${{ github.run_attempt }}
+          PERCY_PARALLEL_TOTAL: ${{ env.PERCY_PARALLEL_TOTAL }}
+      
+      - name: Alternative VRT with Docker
+        if: env.USE_VRT_DOCKER == 'true'
+        run: |
+          cd vrt
+          docker-compose up -d
+          npm run test:vrt
+          docker-compose down
+        env:
+          VRT_API_KEY: ${{ secrets.VRT_API_KEY }}
+
+  browserbase-flow:
+    needs: check-halt
+    if: needs.check-halt.outputs.should-run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Get deployment URL
+        id: deployment
+        run: |
+          if [[ "${{ github.event.inputs.environment }}" == "production" ]]; then
+            echo "url=${{ secrets.PRODUCTION_URL }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ secrets.STAGING_URL }}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run Browserbase flow
+        run: |
+          export BASE_URL="${{ steps.deployment.outputs.url }}"
+          npx @browserbase/stagehand run stagehand/flow.stagehand
+        env:
+          BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+          BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+        timeout-minutes: 12
+      
+      - name: Upload Browserbase results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: browserbase-report
+          path: reports/stagehand-report.json
+          retention-days: 30
+
+  performance-audit:
+    needs: check-halt
+    if: needs.check-halt.outputs.should-run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Run Lighthouse CI
+        run: |
+          npm install -g @lhci/cli@latest
+          lhci autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+      
+      - name: Upload Lighthouse results
+        uses: actions/upload-artifact@v3
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/
+          retention-days: 30
+
+  security-scan:
+    needs: check-halt
+    if: needs.check-halt.outputs.should-run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run npm audit
+        run: npm audit --production || true
+      
+      - name: Run Snyk scan
+        if: env.SNYK_TOKEN != ''
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+  accessibility-test:
+    needs: check-halt
+    if: needs.check-halt.outputs.should-run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build and start application
+        run: |
+          npm run build
+          npm run start &
+          npx wait-on http://localhost:3000
+      
+      - name: Run axe accessibility tests
+        run: npm run test:a11y
+      
+      - name: Upload accessibility report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: a11y-report
+          path: reports/a11y/
+          retention-days: 30
+
+  cost-report:
+    needs: [visual-regression, browserbase-flow, performance-audit]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Generate cost report
+        run: |
+          chmod +x scripts/monitor_costs.sh
+          ./scripts/monitor_costs.sh
+        env:
+          HELICONE_API_KEY: ${{ secrets.HELICONE_API_KEY }}
+          BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+      
+      - name: Check budget status
+        run: |
+          if [[ -f costs/daily_report_$(date +%Y%m%d).json ]]; then
+            REMAINING=$(jq -r '.totals.remaining' costs/daily_report_$(date +%Y%m%d).json)
+            if (( $(echo "$REMAINING < 0" | bc -l) )); then
+              echo "❌ BUDGET EXCEEDED - Activating kill switch"
+              echo "HALT_PIPELINE=true" >> .env
+              git config user.name "GitHub Actions"
+              git config user.email "actions@github.com"
+              git add .env
+              git commit -m "auto: activate kill switch due to budget exceeded"
+              git push
+            fi
+          fi
+
+  notify-results:
+    needs: [visual-regression, browserbase-flow, performance-audit, security-scan, accessibility-test, cost-report]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compile results
+        run: |
+          echo "## Nightly QA Results - $(date)" > summary.md
+          echo "" >> summary.md
+          
+          # Add job statuses
+          echo "### Test Results" >> summary.md
+          echo "- Visual Regression: ${{ needs.visual-regression.result }}" >> summary.md
+          echo "- Browserbase Flow: ${{ needs.browserbase-flow.result }}" >> summary.md
+          echo "- Performance: ${{ needs.performance-audit.result }}" >> summary.md
+          echo "- Security: ${{ needs.security-scan.result }}" >> summary.md
+          echo "- Accessibility: ${{ needs.accessibility-test.result }}" >> summary.md
+          echo "- Cost Report: ${{ needs.cost-report.result }}" >> summary.md
+      
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK != ''
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          STATUS="${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}"
+          EMOJI="${{ contains(needs.*.result, 'failure') && ':x:' || ':white_check_mark:' }}"
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"text\": \"$EMOJI Nightly QA Suite: $STATUS\",
+              \"attachments\": [{
+                \"color\": \"${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}\",
+                \"fields\": [
+                  {\"title\": \"Visual Regression\", \"value\": \"${{ needs.visual-regression.result }}\", \"short\": true},
+                  {\"title\": \"Browser Tests\", \"value\": \"${{ needs.browserbase-flow.result }}\", \"short\": true},
+                  {\"title\": \"Performance\", \"value\": \"${{ needs.performance-audit.result }}\", \"short\": true},
+                  {\"title\": \"Security\", \"value\": \"${{ needs.security-scan.result }}\", \"short\": true}
+                ]
+              }]
+            }" \
+            $SLACK_WEBHOOK

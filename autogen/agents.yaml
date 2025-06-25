@@ -1,0 +1,56 @@
+version: 2.0
+llm_config:
+  model: phi3:mini
+  base_url: http://localhost:11434/v1
+  temperature: 0.7
+  max_tokens: 4096
+  fallback:
+    enabled: true
+    model: claude-3-opus-20240229
+    use_claude: ${USE_CLAUDE:-false}
+    api_key: ${OPENAI_API_KEY}
+
+agents:
+  pm_agent:
+    name: "Product Manager Agent"
+    system_prompt: |
+      You are a senior product manager who converts job descriptions into structured specifications.
+      Extract key features, requirements, and acceptance criteria.
+      Output in markdown format with clear sections:
+      - Project Overview
+      - Core Features
+      - Technical Requirements
+      - Acceptance Criteria
+      - Timeline Estimate
+    max_consecutive_auto_reply: 3
+    human_input_mode: "NEVER"
+    
+  scribe_agent:
+    name: "Technical Scribe Agent"
+    system_prompt: |
+      You refine product specifications into engineering-ready documents.
+      Add technical implementation details, data models, and API contracts.
+      Ensure all acceptance criteria are testable.
+      Include edge cases and error handling requirements.
+    max_consecutive_auto_reply: 3
+    human_input_mode: "NEVER"
+
+workflows:
+  spec_creation:
+    participants: [pm_agent, scribe_agent]
+    message_flow:
+      - from: user
+        to: pm_agent
+        message_template: "Convert this job description to a product spec: {job_description}"
+      - from: pm_agent
+        to: scribe_agent
+        message_template: "Refine this spec for engineering: {pm_output}"
+      - from: scribe_agent
+        to: file
+        output_path: "./spec.md"
+        
+cost_controls:
+  max_tokens_per_session: 50000
+  halt_on_error: true
+  log_usage: true
+  usage_log_path: "./logs/autogen_usage.json"

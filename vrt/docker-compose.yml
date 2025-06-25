@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  vrt:
+    image: visualregressiontracker/agent:latest
+    environment:
+      - VRT_API_URL=${VRT_API_URL:-http://vrt-api:4200}
+      - VRT_PROJECT=${VRT_PROJECT:-autonomous-dev}
+      - VRT_API_KEY=${VRT_API_KEY}
+      - VRT_ENABLE_SOFT_ASSERT=true
+      - VRT_DIFF_TOLERANCE_PERCENT=2
+      - VRT_IGNORE_AREAS=[{"x":0,"y":0,"width":200,"height":50}]
+    volumes:
+      - ./screenshots:/screenshots
+      - ./baselines:/baselines
+    depends_on:
+      - vrt-api
+    networks:
+      - vrt-network
+
+  vrt-api:
+    image: visualregressiontracker/api:latest
+    ports:
+      - "4200:4200"
+    environment:
+      - DATABASE_URL=postgresql://vrt:vrt@postgres:5432/vrt
+      - JWT_SECRET=${VRT_JWT_SECRET:-super-secret-jwt}
+      - APP_FRONTEND_URL=http://localhost:8080
+    depends_on:
+      - postgres
+    networks:
+      - vrt-network
+
+  vrt-ui:
+    image: visualregressiontracker/ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - REACT_APP_API_URL=http://localhost:4200
+    depends_on:
+      - vrt-api
+    networks:
+      - vrt-network
+
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_USER=vrt
+      - POSTGRES_PASSWORD=vrt
+      - POSTGRES_DB=vrt
+    volumes:
+      - vrt-postgres-data:/var/lib/postgresql/data
+    networks:
+      - vrt-network
+
+  # Percy alternative config
+  percy:
+    image: percy/cli:latest
+    environment:
+      - PERCY_TOKEN=${PERCY_TOKEN}
+      - PERCY_BRANCH=${PERCY_BRANCH:-main}
+      - PERCY_TARGET_BRANCH=${PERCY_TARGET_BRANCH:-main}
+    volumes:
+      - ../:/app
+    working_dir: /app
+    command: |
+      exec -- npm run test:visual
+    profiles:
+      - percy
+
+volumes:
+  vrt-postgres-data:
+
+networks:
+  vrt-network:
+    driver: bridge
