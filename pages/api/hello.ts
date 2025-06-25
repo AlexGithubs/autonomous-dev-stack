@@ -23,7 +23,7 @@ export default function handler(
   res: NextApiResponse<HelloResponse | ErrorResponse>
 ) {
   // Check if pipeline is halted
-  const isHalted = process.env.HALT_PIPELINE === 'true';
+  const isHalted = process.env['HALT_PIPELINE'] === 'true';
   
   if (isHalted) {
     return res.status(503).json({
@@ -47,13 +47,13 @@ export default function handler(
     const response: HelloResponse = {
       message: 'Autonomous Dev Stack API is running!',
       timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || '1.0.0',
+      version: process.env['npm_package_version'] || '1.0.0',
       environment: process.env.NODE_ENV || 'development',
       features: {
         multiAgent: true,
         automatedQA: true,
         costControls: true,
-        visualRegression: Boolean(process.env.PERCY_TOKEN || process.env.VRT_API_KEY)
+        visualRegression: Boolean(process.env['PERCY_TOKEN'] || process.env['VRT_API_KEY'])
       }
     };
 
