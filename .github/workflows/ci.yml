@@ -73,7 +73,7 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ secrets.API_URL || 'http://localhost:3000' }}
       
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-output
           path: .next/
@@ -118,7 +118,7 @@ jobs:
       
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ matrix.shard }}
           path: playwright-report/
@@ -180,7 +180,7 @@ jobs:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
       
       - name: Upload cost report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cost-report
           path: costs/
