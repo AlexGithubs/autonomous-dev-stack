@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const CI = process.env.CI === 'true';
+const CI = process.env['CI'] === 'true';
 
 export default defineConfig({
   testDir: './playwright',
@@ -11,14 +11,14 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: CI,
   retries: CI ? 2 : 0,
-  workers: CI ? 1 : undefined,
+  workers: CI ? 1 : 4,
   reporter: [
     ['html', { outputFolder: 'playwright-report', open: !CI }],
     ['json', { outputFile: 'test-results/results.json' }],
     ['list']
   ],
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    baseURL: process.env['BASE_URL'] || 'http://localhost:3000',
     trace: CI ? 'on-first-retry' : 'on',
     screenshot: 'only-on-failure',
     video: CI ? 'retain-on-failure' : 'on',
@@ -49,10 +49,12 @@ export default defineConfig({
     },
   ],
 
-  webServer: CI ? undefined : {
-    command: 'npm run dev',
-    port: 3000,
-    timeout: 120 * 1000,
-    reuseExistingServer: !CI,
-  },
+  ...(CI ? {} : {
+    webServer: {
+      command: 'npm run dev',
+      port: 3000,
+      timeout: 120 * 1000,
+      reuseExistingServer: !CI,
+    }
+  }),
 });
