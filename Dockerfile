@@ -1,5 +1,5 @@
 # Multi-stage build for production
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 # Check kill switch
 ARG HALT_PIPELINE=false
 RUN if [ "$HALT_PIPELINE" = "true" ]; then echo "Pipeline halted" && exit 1; fi
@@ -12,14 +12,14 @@ COPY package.json package-lock.json* ./
 RUN npm ci --only=production
 
 # Development stage
-FROM node:20-alpine AS dev
+FROM node:24-alpine AS dev
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
 
 # Builder stage
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY --from=dev /app/node_modules ./node_modules
 COPY . .
@@ -29,7 +29,7 @@ ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
