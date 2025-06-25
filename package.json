@@ -30,7 +30,7 @@
         "tailwindcss": "^3.4.0"
     },
     "devDependencies": {
-        "@browserbasehq/stagehand": "^1.0.0",
+        "@browserbasehq/stagehand": "^2.4.0",
         "@lhci/cli": "^0.13.0",
         "@percy/cli": "^1.27.0",
         "@percy/playwright": "^1.0.4",
