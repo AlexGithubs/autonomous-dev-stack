@@ -41,7 +41,7 @@
         "@typescript-eslint/eslint-plugin": "^6.0.0",
         "@typescript-eslint/parser": "^6.0.0",
         "autoprefixer": "^10.4.0",
-        "axe-playwright": "^1.2.3",
+        "axe-playwright": "^2.1.0",
         "eslint": "^8.50.0",
         "eslint-config-next": "^14.0.0",
         "jest": "^29.7.0",
