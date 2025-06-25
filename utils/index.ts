@@ -6,7 +6,7 @@
  * Checks if the pipeline is halted
  */
 export const isPipelineHalted = (): boolean => {
-    return process.env.HALT_PIPELINE === 'true';
+    return process.env['HALT_PIPELINE'] === 'true';
   };
   
   /**
