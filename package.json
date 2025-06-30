@@ -19,9 +19,17 @@
         "scaffold": "./devin/devin_run.sh",
         "monitor": "./scripts/monitor_costs.sh",
         "kill": "./scripts/kill_pipeline.sh",
-        "bootstrap": "./scripts/bootstrap.sh"
+        "bootstrap": "./scripts/bootstrap.sh",
+        "slack-bot:install": "cd slack-bot && npm install",
+        "slack-bot:start": "cd slack-bot && npm start",
+        "slack-bot:dev": "cd slack-bot && npm run dev",
+        "slack-bridge:python": "python3 scripts/pm_slack_bridge.py",
+        "workflow": "./workflow.sh",
+        "workflow:status": "./workflow.sh --status",
+        "workflow:reset": "./workflow.sh --reset"
     },
     "dependencies": {
+        "@anthropic-ai/claude-code": "^1.0.35",
         "axios": "^1.6.0",
         "critters": "^0.0.25",
         "next": "^14.0.0",
@@ -35,6 +43,9 @@
         "@percy/cli": "^1.27.0",
         "@percy/playwright": "^1.0.4",
         "@playwright/test": "^1.40.0",
+        "@testing-library/jest-dom": "^6.6.3",
+        "@testing-library/react": "^16.3.0",
+        "@types/jest": "^30.0.0",
         "@types/node": "^20.0.0",
         "@types/react": "^18.2.0",
         "@types/react-dom": "^18.2.0",
