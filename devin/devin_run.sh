@@ -75,37 +75,19 @@ if [[ -z "$BRANCH_NAME" ]]; then
     BRANCH_NAME="devin/feat-$(date +%s)"
 fi
 
-# Prepare LLM prompt
-PROMPT=$(cat <<EOF
-You are a code generator. Generate a Next.js + TypeScript + Tailwind application based on this spec:
+# Prepare LLM prompt (truncate spec to avoid API limits)
+SPEC_SUMMARY=$(echo "$SPEC_TEXT" | head -20 | sed 's/^[[:space:]]*//' | tr '\n' ' ' | head -c 500)
 
-$SPEC_TEXT
+PROMPT="Generate Next.js + TypeScript + Tailwind files for: $SPEC_SUMMARY
 
-CRITICAL: You must respond with ONLY valid JSON in this exact format:
-{
-  "files": [
-    {
-      "path": "pages/index.tsx",
-      "content": "import React from 'react';\n\nexport default function Home() {\n  return (\n    <div className=\"min-h-screen bg-gray-100\">\n      <h1 className=\"text-4xl font-bold text-center pt-20\">Task Manager</h1>\n    </div>\n  );\n}"
-    },
-    {
-      "path": "pages/api/tasks.ts",
-      "content": "import type { NextApiRequest, NextApiResponse } from 'next';\n\nexport default function handler(req: NextApiRequest, res: NextApiResponse) {\n  res.status(200).json({ message: 'Tasks API' });\n}"
-    }
-  ]
-}
+RESPOND ONLY WITH VALID JSON:
+{\"files\": [{\"path\": \"pages/index.tsx\", \"content\": \"import React from 'react'; export default function Home() { return <div className='min-h-screen bg-gray-100 p-8'><h1 className='text-4xl font-bold text-center'>App Title</h1></div>; }\"}, {\"path\": \"pages/api/hello.ts\", \"content\": \"import type { NextApiRequest, NextApiResponse } from 'next'; export default function handler(req: NextApiRequest, res: NextApiResponse) { res.status(200).json({ message: 'Hello API' }); }\"}]}
 
-Requirements:
-- Create pages/index.tsx with responsive design using Tailwind
-- Create pages/api/tasks.ts with RESTful endpoints
-- Use proper TypeScript types
-- Ensure all code compiles
-- No explanations, only JSON
-EOF
-)
+Requirements: TypeScript, Tailwind CSS, responsive design, working Next.js app."
 
 # Call LLM with fallback logic
 echo "🤖 Generating code scaffold..."
+echo "📏 Prompt size: $(echo "$PROMPT" | wc -c) characters"
 RESPONSE=""
 LLM_SUCCESS=false
 
@@ -117,6 +99,7 @@ try_claude() {
         return 1
     fi
     
+    local escaped_prompt=$(echo "$PROMPT" | sed 's/"/\\"/g' | tr -d '\n')
     local claude_response
     claude_response=$(curl -s -w "HTTPSTATUS:%{http_code}" \
         https://api.anthropic.com/v1/messages \
@@ -126,7 +109,7 @@ try_claude() {
         -d "{
             \"model\": \"claude-3-5-sonnet-20241022\",
             \"max_tokens\": 8192,
-            \"messages\": [{\"role\": \"user\", \"content\": \"$PROMPT\"}]
+            \"messages\": [{\"role\": \"user\", \"content\": \"$escaped_prompt\"}]
         }")
     
     local http_code=$(echo "$claude_response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
@@ -141,6 +124,7 @@ try_claude() {
     fi
     
     echo "❌ Claude API failed (HTTP: $http_code)"
+    echo "🔍 Error response: $(echo "$response_body" | head -c 200)..."
     return 1
 }
 
@@ -160,11 +144,13 @@ try_ollama() {
         return 1
     fi
     
+    local escaped_prompt=$(echo "$PROMPT" | sed 's/"/\\"/g' | tr -d '\n')
     local ollama_response
     ollama_response=$(curl -s -m 60 http://localhost:11434/api/generate \
+        -H "Content-Type: application/json" \
         -d "{
             \"model\": \"phi3:mini\",
-            \"prompt\": \"$PROMPT\",
+            \"prompt\": \"$escaped_prompt\",
             \"stream\": false
         }")
     
