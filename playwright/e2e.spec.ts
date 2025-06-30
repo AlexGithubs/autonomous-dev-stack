@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('E2E Tests', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     // Check kill switch
-    const haltPipeline = process.env.HALT_PIPELINE;
+    const haltPipeline = process.env['HALT_PIPELINE'];
     if (haltPipeline === 'true') {
       test.skip();
     }
