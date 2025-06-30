@@ -1,12 +1,20 @@
 #!/bin/bash
 set -euo pipefail
 
+# Get script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 # Load environment
-source ../.env
+if [[ -f "$PROJECT_ROOT/.env" ]]; then
+    source "$PROJECT_ROOT/.env"
+elif [[ -f "$PROJECT_ROOT/.env.local" ]]; then
+    source "$PROJECT_ROOT/.env.local"
+fi
 
 # Configuration
 MAX_DAILY_BUDGET=${HELICONE_MAX_BUDGET_USD:-5}
-LOG_DIR="../costs"
+LOG_DIR="$PROJECT_ROOT/costs"
 LOG_FILE="$LOG_DIR/usage.log"
 ERROR_FILE="$LOG_DIR/errors.log"
 
@@ -15,9 +23,17 @@ mkdir -p "$LOG_DIR"
 
 # Parse arguments
 SUMMARY_ONLY=false
-if [[ "${1:-}" == "--summary" ]]; then
-    SUMMARY_ONLY=true
-fi
+CHECK_ONLY=false
+for arg in "$@"; do
+    case $arg in
+        --summary)
+            SUMMARY_ONLY=true
+            ;;
+        --check-only)
+            CHECK_ONLY=true
+            ;;
+    esac
+done
 
 # Function to log with timestamp
 log() {
@@ -33,6 +49,22 @@ send_slack_alert() {
             "$SLACK_WEBHOOK" 2>/dev/null || true
     fi
 }
+
+# Quick check mode - just verify we're under budget
+if [[ "$CHECK_ONLY" == "true" ]]; then
+    if [[ -f "$PROJECT_ROOT/.env" ]] && grep -q "BUDGET_EXCEEDED=true" "$PROJECT_ROOT/.env"; then
+        echo "❌ Budget exceeded flag found in .env"
+        exit 1
+    fi
+    
+    if [[ "${HALT_PIPELINE:-false}" == "true" ]]; then
+        echo "❌ Pipeline is halted"
+        exit 1
+    fi
+    
+    echo "✅ Cost limits OK"
+    exit 0
+fi
 
 # Initialize totals
 TOTAL_TOKENS=0
@@ -52,9 +84,17 @@ if [[ -n "${HELICONE_API_KEY:-}" ]]; then
     HELICONE_RESPONSE=$(curl -s -H "Authorization: Bearer $HELICONE_API_KEY" \
         "https://api.helicone.ai/v1/usage/daily" 2>/dev/null || echo "{}")
     
-    if [[ -n "$HELICONE_RESPONSE" ]] && [[ "$HELICONE_RESPONSE" != "{}" ]]; then
-        HELICONE_COST=$(echo "$HELICONE_RESPONSE" | jq -r '.cost // 0')
-        HELICONE_TOKENS=$(echo "$HELICONE_RESPONSE" | jq -r '.total_tokens // 0')
+    # Check if response is valid JSON
+    if echo "$HELICONE_RESPONSE" | jq . >/dev/null 2>&1; then
+        HELICONE_COST=$(echo "$HELICONE_RESPONSE" | jq -r '.cost // 0' 2>/dev/null || echo "0")
+        HELICONE_TOKENS=$(echo "$HELICONE_RESPONSE" | jq -r '.total_tokens // 0' 2>/dev/null || echo "0")
+    else
+        echo "  - Helicone API returned invalid response, using defaults"
+        HELICONE_COST="0"
+        HELICONE_TOKENS="0"
+    fi
+    
+    if [[ -n "$HELICONE_COST" ]] && [[ "$HELICONE_COST" != "0" ]]; then
         
         echo "  - Daily tokens: $HELICONE_TOKENS"
         echo "  - Daily cost: \$$HELICONE_COST"
@@ -65,13 +105,13 @@ if [[ -n "${HELICONE_API_KEY:-}" ]]; then
         # Check budget
         if (( $(echo "$HELICONE_COST > $MAX_DAILY_BUDGET" | bc -l) )); then
             log "ERROR: Helicone daily budget exceeded! Cost: \$$HELICONE_COST, Budget: \$$MAX_DAILY_BUDGET"
-            echo "BUDGET_EXCEEDED=true" >> ../.env
+            echo "BUDGET_EXCEEDED=true" >> "$PROJECT_ROOT/.env"
             send_slack_alert "Helicone daily budget exceeded! Cost: \$$HELICONE_COST"
             
             # Auto-halt if configured
             if [[ "${AUTO_HALT_ON_BUDGET:-true}" == "true" ]]; then
                 log "Auto-halting pipeline due to budget exceeded"
-                ../scripts/kill_pipeline.sh
+                "$PROJECT_ROOT/scripts/kill_pipeline.sh"
             fi
         fi
     else
