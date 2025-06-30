@@ -1,166 +1,156 @@
-# Default Product Specification
+# Product Specification: E-Commerce Shopping Cart Application
 
 ## Project Overview
-
-A modern web application with responsive design and API integration, built using Next.js, TypeScript, and Tailwind CSS. The application should demonstrate best practices in development, testing, and deployment.
+Build a modern, performant shopping cart application that enables users to browse products, add items to cart, and complete purchases. The application will prioritize user experience, performance, and reliability while following modern web development standards and best practices.
 
 ## Core Features
+- Product Catalog & Browse
+  - Paginated product listing with search and filters
+  - Individual product detail pages
+  - Real-time inventory status
+  
+- Shopping Cart Management
+  - Add/remove items with quantity adjustment
+  - Persistent cart state across sessions
+  - Real-time price calculations and updates
 
-### 1. Landing Page
-- **Hero Section**: Eye-catching gradient background with animated elements
-- **Navigation**: Sticky header with smooth scroll to sections
-- **Feature Cards**: Interactive cards showcasing key capabilities
-- **Call-to-Action**: Email subscription form with validation
-- **Footer**: Links and copyright information
-
-### 2. API Integration
-- **Health Check Endpoint**: `/api/hello` returning system status
-- **Error Handling**: Graceful error responses with appropriate status codes
-- **Performance Headers**: Include processing time metrics
-- **Caching**: Production-ready cache headers
-
-### 3. Responsive Design
-- **Mobile First**: Optimized for 375px minimum width
-- **Tablet Support**: Breakpoints at 768px
-- **Desktop**: Full experience at 1024px+
-- **Accessibility**: WCAG 2.1 AA compliance
-
-### 4. Testing Infrastructure
-- **Unit Tests**: Component and utility function coverage
-- **E2E Tests**: Playwright for user journey validation
-- **Visual Regression**: Percy or VRT for UI consistency
-- **Performance**: Lighthouse CI integration
+- Checkout Process
+  - Guest and authenticated checkout flows
+  - Address & payment information collection
+  - Order summary & confirmation
 
 ## Technical Requirements
 
-### Frontend Stack
-- **Framework**: Next.js 14+
-- **Language**: TypeScript 5.3+
-- **Styling**: Tailwind CSS 3.4+
-- **State Management**: React hooks
-- **Build Tool**: Next.js built-in webpack
+### Frontend Architecture
+```typescript
+// Core Technologies
+- Next.js 14+ with App Router
+- TypeScript 5.3+
+- Tailwind CSS 3.4+
+- React Server Components
+- State Management: Zustand or Redux Toolkit
 
-### Backend Requirements
-- **API Routes**: Next.js API routes
-- **Environment Variables**: Secure configuration
-- **Error Tracking**: Structured logging
-- **Health Monitoring**: Status endpoints
+// Component Structure
+/components
+  /ui            // Reusable UI components
+  /features      // Feature-specific components
+  /layouts       // Layout components
+  /hooks         // Custom React hooks
+```
 
-### Infrastructure
-- **Hosting**: Vercel (primary), Netlify (backup)
-- **CI/CD**: GitHub Actions
-- **Monitoring**: Helicone for LLM usage
-- **Cost Control**: Budget caps and alerts
+### Data Layer
+```typescript
+// Product Interface
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  inventory: number;
+  images: string[];
+  categories: string[];
+}
 
-### Development Tools
-- **Code Generation**: AutoGen + Claude/GPT-4
-- **Version Control**: Git with conventional commits
-- **Code Quality**: ESLint + Prettier
-- **Type Safety**: Strict TypeScript config
+// Cart Interface
+interface CartItem {
+  productId: string;
+  quantity: number;
+  price: number;
+}
+
+interface Cart {
+  items: CartItem[];
+  total: number;
+  userId?: string;
+}
+```
+
+### API Endpoints
+```typescript
+// RESTful API Routes
+GET    /api/products      // List products with pagination
+GET    /api/products/:id  // Get single product
+POST   /api/cart         // Add to cart
+PUT    /api/cart/:itemId // Update cart item
+DELETE /api/cart/:itemId // Remove from cart
+POST   /api/checkout     // Process checkout
+```
+
+### Testing Strategy
+- Jest unit tests for utilities and hooks
+- React Testing Library for component testing
+- Playwright for E2E testing of critical flows
+- API endpoint testing with Supertest
 
 ## Acceptance Criteria
 
-### Performance
-- [ ] Homepage loads in under 3 seconds on 3G
-- [ ] Lighthouse score > 90 for all categories
-- [ ] No memory leaks in 5-minute usage session
-- [ ] API responses under 200ms (p95)
+### Product Listing
+- [ ] Products display in a responsive grid layout
+- [ ] Each product shows image, name, price, and add-to-cart button
+- [ ] Pagination works with 12 items per page
+- [ ] Search filters products in real-time
+- [ ] Product cards are keyboard accessible
 
-### Accessibility
-- [ ] All images have descriptive alt text
-- [ ] Keyboard navigation fully functional
-- [ ] Screen reader compatible
-- [ ] Color contrast ratio > 4.5:1
+### Shopping Cart
+- [ ] Cart persists across page refreshes
+- [ ] Quantity can be adjusted with immediate price updates
+- [ ] Remove items functionality works
+- [ ] Cart total updates automatically
+- [ ] Empty cart state is handled gracefully
 
-### Browser Support
-- [ ] Chrome/Edge (latest 2 versions)
-- [ ] Firefox (latest 2 versions)
-- [ ] Safari (latest 2 versions)
-- [ ] Mobile browsers (iOS Safari, Chrome Android)
+### Checkout Process
+- [ ] Form validation for required fields
+- [ ] Address verification
+- [ ] Payment processing integration
+- [ ] Order confirmation page
+- [ ] Email confirmation sent
 
-### Testing
-- [ ] 80% code coverage for utilities
-- [ ] All user journeys have E2E tests
-- [ ] Visual regression tests passing
-- [ ] No console errors in production
+## Implementation Notes
 
-### Deployment
-- [ ] Automated deployment on merge to main
-- [ ] Preview deployments for PRs
-- [ ] Rollback capability within 5 minutes
-- [ ] Zero-downtime deployments
+### Performance Considerations
+- Implement image optimization using Next.js Image component
+- Use React Suspense for loading states
+- Implement proper data caching strategy
+- Optimize bundle size with dynamic imports
 
-## User Stories
+### Security Measures
+- Input sanitization
+- CSRF protection
+- Rate limiting on API routes
+- Secure payment processing
+- Data encryption at rest
 
-### As a Developer
-- I want to clone and run the project with a single command
-- I want clear documentation for all features
-- I want automated testing to catch regressions
-- I want cost visibility for all services
-
-### As a Visitor
-- I want a fast, responsive experience on any device
-- I want clear information about the product
-- I want to easily contact or subscribe
-- I want confidence in the site's security
-
-### As a Project Owner
-- I want predictable costs with automatic limits
-- I want deployment notifications
-- I want performance metrics and alerts
-- I want easy maintenance and updates
-
-## Edge Cases
-
-### Error Scenarios
-- API endpoint unavailable
-- Network timeout during form submission
-- Invalid environment configuration
-- Rate limiting triggered
-
-### Performance Degradation
-- Large viewport changes during interaction
-- Slow network conditions
-- High CPU usage scenarios
-- Memory pressure on mobile devices
-
-### Security Considerations
-- XSS prevention in user inputs
-- CSRF protection for forms
-- Secure headers configuration
-- Environment variable exposure
+### Error Handling
+- Implement global error boundary
+- Proper API error responses
+- Offline functionality
+- Network error recovery
 
 ## Timeline Estimate
 
-### Phase 1: Foundation (Week 1)
+### Phase 1: Setup & Core Features (1 week)
 - Project setup and configuration
-- Basic component structure
-- API endpoint implementation
-- Development environment
+- Basic product listing and detail pages
+- Initial cart functionality
 
-### Phase 2: Features (Week 2)
-- Complete UI implementation
-- Form handling and validation
-- Responsive design refinement
-- Basic testing setup
+### Phase 2: Enhanced Features (1 week)
+- Cart persistence
+- Search and filtering
+- Responsive design implementation
 
-### Phase 3: Quality (Week 3)
-- Comprehensive test coverage
+### Phase 3: Checkout & Testing (1 week)
+- Checkout flow implementation
+- Unit and E2E testing
 - Performance optimization
-- Accessibility audit and fixes
-- Documentation
 
-### Phase 4: Deployment (Week 4)
-- CI/CD pipeline setup
-- Production deployment
-- Monitoring integration
-- Handover and training
+### Phase 4: Polish & Deploy (3 days)
+- Bug fixes
+- Final testing
+- Deployment and monitoring setup
 
-## Success Metrics
+Total Timeline: 3.5 weeks
 
-- **Development Velocity**: 5+ features per week
-- **Test Coverage**: > 80% for critical paths
-- **Performance Budget**: < 100KB initial JS
-- **Deployment Frequency**: Daily releases possible
-- **Cost Efficiency**: < $5/day for all services
-- **User Satisfaction**: > 4.5/5 developer experience
+Notes:
+- Timeline assumes one full-time senior developer
+- Includes buffer for code review and QA
+- Does not include external dependencies (e.g., payment processing setup)
