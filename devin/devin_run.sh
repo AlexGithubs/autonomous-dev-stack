@@ -501,8 +501,16 @@ fi
 # Validate JSON response
 echo "🔍 Validating JSON response..."
 if ! echo "$RESPONSE" | jq . >/dev/null 2>&1; then
-    echo "❌ LLM response is not valid JSON. Using professional fallback..."
-    RESPONSE='{"files":[{"path":"pages/index.tsx","content":"Professional landing page created"}]}'
+    echo "❌ LLM response is not valid JSON. Trying to extract JSON..."
+    # Try to extract JSON from response using regex
+    JSON_EXTRACT=$(echo "$RESPONSE" | grep -o '{.*}' | head -1)
+    if [[ -n "$JSON_EXTRACT" ]] && echo "$JSON_EXTRACT" | jq . >/dev/null 2>&1; then
+        RESPONSE="$JSON_EXTRACT"
+        echo "✅ Extracted valid JSON from response"
+    else
+        echo "❌ Could not extract valid JSON. Using professional fallback..."
+        RESPONSE='{"files":[{"path":"pages/index.tsx","content":"Professional landing page created"}]}'
+    fi
 fi
 
 # Parse and write files from JSON
