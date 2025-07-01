@@ -27,17 +27,17 @@ import {
       });
   
       it('returns true when HALT_PIPELINE is true', () => {
-        process.env.HALT_PIPELINE = 'true';
+        process.env['HALT_PIPELINE'] = 'true';
         expect(isPipelineHalted()).toBe(true);
       });
   
       it('returns false when HALT_PIPELINE is false', () => {
-        process.env.HALT_PIPELINE = 'false';
+        process.env['HALT_PIPELINE'] = 'false';
         expect(isPipelineHalted()).toBe(false);
       });
   
       it('returns false when HALT_PIPELINE is not set', () => {
-        delete process.env.HALT_PIPELINE;
+        delete process.env['HALT_PIPELINE'];
         expect(isPipelineHalted()).toBe(false);
       });
     });
@@ -237,17 +237,17 @@ import {
       });
   
       it('returns true for "true" value', () => {
-        process.env.TEST_VAR = 'true';
+        process.env['TEST_VAR'] = 'true';
         expect(getEnvBoolean('TEST_VAR')).toBe(true);
       });
   
       it('returns true for "TRUE" value', () => {
-        process.env.TEST_VAR = 'TRUE';
+        process.env['TEST_VAR'] = 'TRUE';
         expect(getEnvBoolean('TEST_VAR')).toBe(true);
       });
   
       it('returns false for "false" value', () => {
-        process.env.TEST_VAR = 'false';
+        process.env['TEST_VAR'] = 'false';
         expect(getEnvBoolean('TEST_VAR')).toBe(false);
       });
   
@@ -269,7 +269,7 @@ import {
       });
   
       it('returns env value when set', () => {
-        process.env.TEST_VAR = 'test-value';
+        process.env['TEST_VAR'] = 'test-value';
         expect(getEnv('TEST_VAR')).toBe('test-value');
       });
   
