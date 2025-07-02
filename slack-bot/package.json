@@ -1,0 +1,29 @@
+{
+  "name": "autonomous-dev-slack-bot",
+  "version": "1.0.0",
+  "description": "Slack bot for autonomous development workflow",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "install": "npm install"
+  },
+  "dependencies": {
+    "@slack/bolt": "^3.17.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "slack",
+    "bot",
+    "autogen",
+    "autonomous",
+    "development"
+  ],
+  "author": "Autonomous Dev Stack",
+  "license": "MIT"
+}
