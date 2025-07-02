@@ -376,39 +376,43 @@ export default async function handler(
 - **Performance**: Core Web Vitals optimization
 - **Mobile Friendly**: Mobile-first responsive design
 
-RESPOND ONLY WITH VALID JSON in this exact format:
+CRITICAL: YOU MUST RESPOND WITH ONLY VALID JSON IN THIS EXACT FORMAT:
+
 {
   "files": [
     {
       "path": "pages/index.tsx",
-      "content": "[Complete landing page component with all sections]"
+      "content": "[Complete React component code as a single string with proper escaping]"
     },
     {
       "path": "components/ui/button.tsx", 
-      "content": "[Professional button component with variants]"
+      "content": "[Complete TypeScript component code as a single string]"
     },
     {
       "path": "components/ui/card.tsx",
-      "content": "[Professional card components]"
+      "content": "[Complete TypeScript component code as a single string]"
     },
     {
       "path": "components/ui/input.tsx",
-      "content": "[Professional input component]"
+      "content": "[Complete TypeScript component code as a single string]"
     },
     {
       "path": "lib/utils.ts",
-      "content": "[Utility functions for className merging]"
+      "content": "[Complete TypeScript utility functions as a single string]"
     },
     {
       "path": "pages/api/newsletter.ts",
-      "content": "[Newsletter subscription API endpoint]"
+      "content": "[Complete API endpoint code as a single string]"
     },
     {
       "path": "pages/api/contact.ts",
-      "content": "[Contact form API endpoint]"
+      "content": "[Complete API endpoint code as a single string]"
     }
   ]
 }
+
+DO NOT include any text before or after the JSON. DO NOT use markdown code blocks. DO NOT add explanations.
+ONLY return the JSON object with properly escaped strings for all file contents.
 
 CRITICAL REQUIREMENTS:
 - Use TypeScript throughout with proper interfaces
@@ -441,20 +445,212 @@ Generate a sophisticated dashboard with:
 - **Main Content Area**: Widget grid with responsive layout
 - **Stats Cards**: Key metrics with trend indicators and charts
 - **Data Tables**: Sortable, filterable tables with pagination
-- **Charts**: Interactive charts using Chart.js or Recharts
+- **Charts**: Interactive charts using Recharts
 - **Quick Actions**: Floating action button with menu
 
-### 2. components/dashboard/sidebar.tsx - Professional Sidebar
-### 3. components/dashboard/header.tsx - Dashboard Header
-### 4. components/dashboard/stats-card.tsx - Metrics Cards
+### 2. components/dashboard/sidebar.tsx - Professional Sidebar Component
+\`\`\`typescript
+import { useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/router'
+import { 
+  LayoutDashboard, 
+  Users, 
+  FileText, 
+  Settings, 
+  BarChart3, 
+  Bell, 
+  Search,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+interface SidebarProps {
+  collapsed: boolean
+  onToggle: () => void
+}
+
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const router = useRouter()
+  
+  const navigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Users', href: '/dashboard/users', icon: Users },
+    { name: 'Reports', href: '/dashboard/reports', icon: FileText },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+    { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  ]
+
+  return (
+    <div className={cn(
+      "fixed left-0 top-0 z-50 h-full bg-white border-r border-gray-200 transition-all duration-300",
+      collapsed ? "w-16" : "w-64"
+    )}>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        {!collapsed && (
+          <h2 className="text-xl font-semibold text-gray-800">Dashboard</h2>
+        )}
+        <button
+          onClick={onToggle}
+          className="p-1.5 rounded-lg hover:bg-gray-100"
+        >
+          {collapsed ? (
+            <ChevronRight className="w-4 h-4" />
+          ) : (
+            <ChevronLeft className="w-4 h-4" />
+          )}
+        </button>
+      </div>
+      
+      <nav className="mt-4 px-2">
+        {navigation.map((item) => {
+          const isActive = router.pathname === item.href
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={cn(
+                "flex items-center px-3 py-2 mb-1 text-sm font-medium rounded-lg transition-colors",
+                isActive
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-600 hover:bg-gray-50"
+              )}
+            >
+              <item.icon className={cn("w-5 h-5", collapsed ? "" : "mr-3")} />
+              {!collapsed && <span>{item.name}</span>}
+            </Link>
+          )
+        })}
+      </nav>
+    </div>
+  )
+}
+\`\`\`
+
+### 3. components/dashboard/header.tsx - Dashboard Header Component
+\`\`\`typescript
+import { useState } from 'react'
+import { Search, Bell, User, Settings, LogOut } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+interface HeaderProps {
+  sidebarCollapsed: boolean
+}
+
+export function Header({ sidebarCollapsed }: HeaderProps) {
+  const [showUserMenu, setShowUserMenu] = useState(false)
+
+  return (
+    <header className={cn(
+      "fixed top-0 right-0 z-40 h-16 bg-white border-b border-gray-200 transition-all duration-300",
+      sidebarCollapsed ? "left-16" : "left-64"
+    )}>
+      <div className="flex items-center justify-between h-full px-6">
+        <div className="flex items-center flex-1 max-w-md">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="sm" className="relative">
+            <Bell className="w-5 h-5" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs"></span>
+          </Button>
+          
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center space-x-2"
+            >
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <span className="hidden sm:block">John Doe</span>
+            </Button>
+            
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
+                <a href="#" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                  <Settings className="w-4 h-4 mr-3" />
+                  Settings
+                </a>
+                <a href="#" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                  <LogOut className="w-4 h-4 mr-3" />
+                  Sign out
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}
+\`\`\`
+
+### 4. components/dashboard/stats-card.tsx - Professional Stats Cards
 ### 5. components/dashboard/data-table.tsx - Advanced Data Table
 ### 6. components/dashboard/chart.tsx - Interactive Charts
 ### 7. pages/api/dashboard/stats.ts - Dashboard Statistics API
 ### 8. pages/api/dashboard/data.ts - Dashboard Data API
 
-[Continue with detailed dashboard specifications...]
+## DESIGN REQUIREMENTS:
 
-RESPOND ONLY WITH VALID JSON with all required files and professional implementations.`;
+### Dashboard Layout
+- **Responsive Design**: Adapts to all screen sizes with collapsible sidebar
+- **Professional Styling**: Clean, modern interface with consistent spacing
+- **Interactive Elements**: Hover states, animations, and smooth transitions
+- **Data Visualization**: Charts, graphs, and metrics with real-time updates
+
+### Component Architecture
+- **Modular Design**: Reusable components with proper prop interfaces
+- **State Management**: Efficient state handling with React hooks
+- **Performance**: Optimized rendering with proper memo usage
+- **Accessibility**: Full keyboard navigation and screen reader support
+
+CRITICAL: YOU MUST RESPOND WITH ONLY VALID JSON IN THIS EXACT FORMAT:
+
+{
+  "files": [
+    {
+      "path": "pages/dashboard.tsx",
+      "content": "[Complete dashboard layout component]"
+    },
+    {
+      "path": "components/dashboard/sidebar.tsx",
+      "content": "[Professional sidebar component]"
+    },
+    {
+      "path": "components/dashboard/header.tsx",
+      "content": "[Dashboard header component]"
+    },
+    {
+      "path": "components/dashboard/stats-card.tsx",
+      "content": "[Stats card component]"
+    },
+    {
+      "path": "components/dashboard/data-table.tsx",
+      "content": "[Advanced data table component]"
+    },
+    {
+      "path": "pages/api/dashboard/stats.ts",
+      "content": "[Dashboard stats API]"
+    }
+  ]
+}
+
+DO NOT include any text before or after the JSON. DO NOT use markdown code blocks. DO NOT add explanations.
+ONLY return the JSON object with properly escaped strings for all file contents.`;
 
 // Enhanced SaaS application template for complex applications
 const SAAS_APP_TEMPLATE = (spec) => `You are an expert Next.js developer creating a complete SaaS application that looks and functions like a $100k+ professional product.
